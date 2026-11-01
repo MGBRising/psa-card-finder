@@ -123,6 +123,18 @@ class HoldScoreTests(unittest.TestCase):
         self.assertGreater(hi, lo)
 
 
+class ShippingTests(unittest.TestCase):
+    def test_unknown_shipping_is_not_free(self):
+        s = {"price": {"value": "43.99"}, "buyingOptions": ["FIXED_PRICE"],
+             "shippingOptions": [{"shippingCostType": "CALCULATED"}]}
+        self.assertEqual(filters.listing_price(s), (43.99, None))
+
+    def test_buyer_zip_header(self):
+        from scanner.ebay import EbayClient
+        c = EbayClient("a", "b", buyer_zip="54301")
+        self.assertIn("54301", c.buyer_ctx)
+
+
 class MarketTests(unittest.TestCase):
     def test_median_ignores_outliers(self):
         self.assertEqual(filters.market_value([40, 45, 50, 900], 3), 47.5)

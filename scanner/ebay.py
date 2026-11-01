@@ -16,10 +16,10 @@ class EbayError(Exception):
 
 
 class EbayClient:
-    def __init__(self, app_id, cert_id, marketplace="EBAY_US"):
-        self.app_id = app_id
-        self.cert_id = cert_id
+    def __init__(self, app_id, cert_id, marketplace="EBAY_US", buyer_zip=None):
         self.marketplace = marketplace
+        # Tells eBay where the buyer is, so it can work out "calculated" shipping costs.
+        self.buyer_ctx = urllib.parse.quote(f"country=US,zip={buyer_zip}") if buyer_zip else None
         self.app_id = app_id.strip()
         self.cert_id = cert_id.strip()
         self._token = None
@@ -76,6 +76,7 @@ class EbayClient:
                 "Authorization": f"Bearer {self._get_token()}",
                 "X-EBAY-C-MARKETPLACE-ID": self.marketplace,
                 "Accept": "application/json",
+                **({"X-EBAY-C-ENDUSERCTX": f"contextualLocation={self.buyer_ctx}"} if self.buyer_ctx else {}),
             },
         )
         return self._send(req)
