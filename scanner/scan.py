@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import filters
 from .ebay import EbayClient
-from .psa import PsaClient, PsaLimitReached
+from .psa import PsaAuthError, PsaClient, PsaLimitReached
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "config.json"
@@ -106,9 +106,13 @@ class Scanner:
             self.psa_out = True
             return None, "unverified"
         try:
-            usage["calls"] += 1
             data = self.psa.lookup(cert_number)
+            usage["calls"] += 1
         except PsaLimitReached:
+            self.psa_out = True
+            return None, "unverified"
+        except PsaAuthError as e:
+            print(f"  PSA cert checks turned off for this scan: {e}")
             self.psa_out = True
             return None, "unverified"
         except Exception as e:  # PSA hiccup should not stop the whole scan
@@ -117,8 +121,11 @@ class Scanner:
         self.cache["certs"][cert_number] = data
         return data, "verified" if data else "missing"
 
-    def market_for(self, query, grade):
-        key = f"{grade}|{query.lower()}"
+    def market_for(self, query, grade, number):
+        """Prices of other Buy It Now listings of the same card number and grade."""
+        if not number:
+            return []  # without a card number we can't be sure comps are the same card
+        key = f"{grade}|{number}|{query.lower()}"
         cached = self.cache["comps"].get(key)
         if cached and time.time() - cached["at"] < COMPS_TTL:
             prices = cached["prices"]
@@ -127,12 +134,15 @@ class Scanner:
             aspects["Grade"] = grade
             prices = []
             for s in self.ebay.search(
-                q=f"{query} psa {grade}",
+                q=f"{query} psa {grade}" if number in query.lower() else f"{query} {number} psa {grade}",
                 category_id=self.cfg["category_id"],
                 aspects=aspects,
                 max_items=self.cfg["comps_per_card"],
+                buying="FIXED_PRICE",  # auction bids aren't real prices until the end
             ):
                 if filters.title_problem(s.get("title", ""), grade, self.cfg["title_blocklist"]):
+                    continue
+                if number not in filters.card_numbers(s.get("title", "")):
                     continue
                 price, ship = filters.listing_price(s)
                 if price:
@@ -190,10 +200,14 @@ class Scanner:
                     continue
 
             query = filters.comps_query(s.get("title", ""), cert)
-            comps = [p for cid, p in self.market_for(query, grade) if cid != item_id]
+            number = filters.card_number(s.get("title", ""), cert)
+            comps = [p for cid, p in self.market_for(query, grade, number) if cid != item_id]
             market = filters.market_value(comps, self.cfg["min_comps"])
             total = round(price + (ship or 0), 2)
+            is_auction = "AUCTION" in (s.get("buyingOptions") or [])
             discount = round(1 - total / market, 3) if market else None
+            if is_auction and not filters.ending_soon(s.get("itemEndDate")):
+                discount = None  # an early bid says nothing about the final price
 
             deals.append({
                 "id": item_id,
@@ -205,7 +219,7 @@ class Scanner:
                 "price": price,
                 "shipping": ship,
                 "total": total,
-                "buying": "auction" if "AUCTION" in (s.get("buyingOptions") or []) else "buy_now",
+                "buying": "auction" if is_auction else "buy_now",
                 "bids": s.get("bidCount"),
                 "ends": s.get("itemEndDate"),
                 "cert": details["cert"],

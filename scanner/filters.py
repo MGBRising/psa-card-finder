@@ -6,6 +6,7 @@ or None when it passes. The reasons are counted and shown on the deals page.
 
 import re
 import statistics
+from datetime import datetime, timezone
 import unicodedata
 
 GRADE_RE = re.compile(r"\bpsa\s*(?:gem\s*(?:mint|mt)\s*|mint\s*)?(\d{1,2}(?:\.\d)?)\b", re.I)
@@ -122,6 +123,40 @@ def psa_problem(cert, grade, brand_blocklist):
     return None
 
 
+NUM_PATTERNS = [
+    re.compile(r"(?<![a-z0-9])([a-z]{0,4}\d{1,3})\s*/\s*[a-z]{0,4}\d{1,3}(?![a-z0-9])"),  # 161/181, TG06/TG30
+    re.compile(r"#\s*([a-z]{0,5}\d{1,4})(?![a-z0-9])"),                                    # #161, #SWSH184
+    re.compile(r"(?<![a-z0-9])((?:swsh|sm|xy|bw|svp|sv|tg|gg|rc|hgss|dp|smp)\d{1,3})(?![a-z0-9])"),  # SWSH184
+]
+
+
+def _norm_number(n):
+    m = re.match(r"([a-z]*)0*(\d+)$", n.lower())
+    return (m.group(1) + m.group(2)) if m else n.lower()
+
+
+def card_numbers(title):
+    """Card numbers written in a title, normalized: '#020' -> '20', 'TG06/TG30' -> 'tg6'."""
+    t = _norm(title)
+    found = set()
+    for i, pat in enumerate(NUM_PATTERNS):
+        if i == 1:  # drop set totals ("/181") so they aren't read as card numbers
+            t = re.sub(r"/\s*[a-z]{0,4}\d{1,3}", " ", t)
+        for n in pat.findall(t):
+            if re.fullmatch(r"(19|20)\d\d", n):  # a year, not a card number
+                continue
+            found.add(_norm_number(n))
+    return found
+
+
+def card_number(title, cert=None):
+    """The one card number for this listing, or None if unclear."""
+    if cert and cert.get("CardNumber"):
+        return _norm_number(re.sub(r"[^a-z0-9]", "", _norm(cert["CardNumber"])))
+    nums = card_numbers(title)
+    return nums.pop() if len(nums) == 1 else None
+
+
 def comps_query(title, cert=None):
     """Search words that find other copies of the same card."""
     if cert and cert.get("Subject"):
@@ -132,6 +167,18 @@ def comps_query(title, cert=None):
     t = re.sub(r"[^a-z0-9/ ]", " ", t)
     words = t.split()
     return " ".join(words[:6])
+
+
+def ending_soon(end_iso, hours=24):
+    """True if an auction ends within the next `hours`."""
+    if not end_iso:
+        return False
+    try:
+        end = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    left = (end - datetime.now(timezone.utc)).total_seconds()
+    return 0 < left <= hours * 3600
 
 
 def market_value(prices, min_comps):

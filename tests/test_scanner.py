@@ -85,6 +85,21 @@ class PsaTests(unittest.TestCase):
         self.assertIsNotNone(filters.psa_problem(cert, "10", []))
 
 
+class CardNumberTests(unittest.TestCase):
+    def test_formats(self):
+        self.assertEqual(filters.card_numbers("Team Up #161 Full Art PSA 10"), {"161"})
+        self.assertEqual(filters.card_numbers("Mega Charizard Y EX 294/217 PSA 9"), {"294"})
+        self.assertEqual(filters.card_numbers("Jolteon VMAX #SWSH184 PSA 10"), {"swsh184"})
+        self.assertEqual(filters.card_numbers("Gengar TG06/TG30 PSA 10"), {"tg6"})
+        self.assertEqual(filters.card_numbers("Charizard VMAX #020 PSA 9"), {"20"})
+
+    def test_year_is_not_a_number(self):
+        self.assertEqual(filters.card_numbers("2021 Pokemon Celebrations PSA 10"), set())
+
+    def test_cert_number_wins(self):
+        self.assertEqual(filters.card_number("whatever", {"CardNumber": "020"}), "20")
+
+
 class MarketTests(unittest.TestCase):
     def test_median_ignores_outliers(self):
         self.assertEqual(filters.market_value([40, 45, 50, 900], 3), 47.5)
@@ -109,7 +124,9 @@ class FakeEbay:
             summary("cgc", "Pikachu PSA 10", 20),
             summary("fakecert", "Mew PSA 10", 25),
         ]
-        self.comps = [summary(f"c{i}", "Charmander 168 151 PSA 10", p) for i, p in enumerate([60, 65, 70, 999])]
+        self.comps = [summary(f"c{i}", "Charmander #168 151 PSA 10", p) for i, p in enumerate([60, 65, 70, 999])]
+        # Same set, different card: must not count toward Charmander's price
+        self.comps += [summary(f"o{i}", "Charizard #183 151 PSA 10", 900) for i in range(5)]
 
     def search(self, q, aspects=None, **kw):
         return iter(self.listings if q.startswith("pokemon psa 10") else
@@ -145,6 +162,31 @@ class ScannerTests(unittest.TestCase):
         self.assertAlmostEqual(deal["discount"], 0.496, places=3)
         self.assertEqual(deal["psa_status"], "verified")
         self.assertEqual(sum(scanner.rejected.values()), 3)
+
+    def test_early_auction_has_no_discount(self):
+        ebay = FakeEbay()
+        ebay.listings[0]["buyingOptions"] = ["AUCTION"]
+        ebay.listings[0]["currentBidPrice"] = {"value": "1.00"}
+        ebay.listings[0]["itemEndDate"] = "2099-01-01T00:00:00Z"
+        deals = Scanner({**CONFIG, "grades": ["10"]}, ebay, FakePsa(), {}).run()
+        self.assertEqual(deals[0]["total"], 5)
+        self.assertIsNone(deals[0]["discount"])
+
+    def test_psa_block_stops_lookups(self):
+        from scanner.psa import PsaAuthError
+
+        class BlockedPsa:
+            calls = 0
+
+            def lookup(self, cert):
+                self.calls += 1
+                raise PsaAuthError("PSA returned 403")
+
+        psa = BlockedPsa()
+        cache = {}
+        Scanner({**CONFIG, "grades": ["10"]}, FakeEbay(), psa, cache).run()
+        self.assertEqual(psa.calls, 1)
+        self.assertEqual(cache["psa_usage"]["calls"], 0)
 
 
 if __name__ == "__main__":

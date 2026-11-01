@@ -245,9 +245,11 @@ function cardHtml(d) {
       <div class="prices">
         <span class="price">${money(d.total)}</span>
         ${d.market ? `<span class="was">market <s>${money(d.market)}</s></span>` : `<span class="was">no market price yet</span>`}
+        ${d.buying === "auction" ? `<span class="was">current bid</span>` : ""}
       </div>
       <div class="ship">${d.shipping ? "incl. " + money(d.shipping) + " shipping" : "free shipping"}</div>
       <div class="facts">
+        ${pct != null && pct >= 70 ? `<span class="chip warn">Looks too good, double-check</span>` : ""}
         ${cert}
         ${d.buying === "auction" ? `<span class="chip warn">Auction · ${d.bids ?? 0} bids · ${timeLeft(d.ends)}</span>` : ""}
         ${d.population ? `<span class="chip">Pop ${Number(d.population).toLocaleString()}</span>` : ""}
@@ -281,7 +283,8 @@ function render() {
     d.total <= s.maxPrice && grades.includes(d.grade) &&
     (s.buying === "all" || d.buying === s.buying) &&
     (d.psa_status === "no_cert" ? s.showNoCert : (s.showUnverified || d.psa_status === "verified")) &&
-    (d.discount == null ? s.showNoMarket : d.discount * 100 >= min)
+    (d.discount == null ? (s.showNoMarket || (d.buying === "auction" && d.market && min === 0))
+                        : d.discount * 100 >= min)
   ).sort({
     discount: (a, b) => (b.discount ?? -9) - (a.discount ?? -9),
     price: (a, b) => a.total - b.total,
