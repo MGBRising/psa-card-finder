@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "17 */6 * * *"   # every 6 hours
   workflow_dispatch:          # "Run workflow" button for an on-demand scan
+  push:                       # republish right away when the page or scanner changes
+    branches: [main]
+    paths: ["site/index.html", "scanner/**", "config.json"]
 
 permissions:
   contents: write
