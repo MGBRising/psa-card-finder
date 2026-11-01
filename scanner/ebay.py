@@ -20,6 +20,8 @@ class EbayClient:
         self.app_id = app_id
         self.cert_id = cert_id
         self.marketplace = marketplace
+        self.app_id = app_id.strip()
+        self.cert_id = cert_id.strip()
         self._token = None
         self._token_expires = 0
         self.calls = 0
@@ -79,9 +81,10 @@ class EbayClient:
         return self._send(req)
 
     def search(self, q, category_id, max_price=None, aspects=None,
-               limit=200, max_items=600, graded_only=True):
+               limit=200, max_items=600, graded_only=True,
+               buying="FIXED_PRICE|AUCTION"):
         """Yield item summaries for a search, following pages up to max_items."""
-        filters = ["priceCurrency:USD", "buyingOptions:{FIXED_PRICE|AUCTION}"]
+        filters = ["priceCurrency:USD", f"buyingOptions:{{{buying}}}"]
         if max_price is not None:
             filters.append(f"price:[..{max_price}]")
         if graded_only:
