@@ -274,7 +274,7 @@ function cardHtml(d, gone) {
         ${d.buying === "auction" ? `<span class="was">current bid</span>` : ""}
       </div>
       ${d.hold != null ? `<div class="hold" title="${esc((d.hold_why || []).join(", "))}"><b class="${d.hold >= 70 ? "hi" : d.hold >= 50 ? "mid" : ""}">Hold ${d.hold}</b><span>${esc((d.hold_why || []).map(r => r.replace(/ \([+-]\d+\)$/, "")).join(" · "))}</span></div>` : ""}
-      <div class="ship">${d.shipping ? "incl. " + money(d.shipping) + " shipping" : "free shipping"}</div>
+      <div class="ship">${d.shipping == null ? "+ shipping (see listing)" : d.shipping ? "incl. " + money(d.shipping) + " shipping" : "free shipping"}</div>
       <div class="facts">
         ${pct != null && pct >= 70 ? `<span class="chip warn">Looks too good, double-check</span>` : ""}
         ${cert}

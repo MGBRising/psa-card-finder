@@ -1,6 +1,8 @@
 {
   "_comment": "Scanner settings. Your everyday filters (max price, grades, discount) live on the deals page itself; this file only controls what the scanner collects.",
   "marketplace": "EBAY_US",
+  "buyer_zip": "91205",
+  "_buyer_zip_note": "Your ZIP code, so shipping costs match what eBay shows you.",
   "category_id": "183454",
   "grades": [
     "10",

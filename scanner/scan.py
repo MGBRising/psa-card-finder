@@ -264,7 +264,8 @@ def main():
 
     config = load_json(CONFIG, None)
     cache = load_json(CACHE, {})
-    ebay = EbayClient(app_id, cert_id, config.get("marketplace", "EBAY_US"))
+    ebay = EbayClient(app_id, cert_id, config.get("marketplace", "EBAY_US"),
+                      buyer_zip=str(config.get("buyer_zip") or "").strip() or None)
     psa = PsaClient(psa_token) if psa_token else None
 
     scanner = Scanner(config, ebay, psa, cache)
