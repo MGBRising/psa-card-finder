@@ -100,6 +100,29 @@ class CardNumberTests(unittest.TestCase):
         self.assertEqual(filters.card_number("whatever", {"CardNumber": "020"}), "20")
 
 
+class HoldScoreTests(unittest.TestCase):
+    def test_iconic_vintage_beats_modern_common(self):
+        from scanner.hold import hold_score
+        zard, _ = hold_score("1999 Pokemon Base Set Shadowless Charizard #4 PSA 9", "9")
+        common, _ = hold_score("2025 Pokemon Bulbasaur Reverse Holo PSA 9", "9")
+        self.assertGreater(zard, 80)
+        self.assertLess(common, 40)
+
+    def test_reasons_and_bounds(self):
+        from scanner.hold import hold_score
+        score, why = hold_score("Umbreon VMAX Alt Art #215 PSA 10", "10",
+                                {"Year": "2021", "TotalPopulation": 80})
+        self.assertLessEqual(score, 100)
+        self.assertTrue(any("Umbreon" in w for w in why))
+        self.assertTrue(any("pop 80" in w for w in why))
+
+    def test_common_pop_penalized(self):
+        from scanner.hold import hold_score
+        hi, _ = hold_score("Pikachu PSA 10", "10", {"TotalPopulation": 50})
+        lo, _ = hold_score("Pikachu PSA 10", "10", {"TotalPopulation": 50000})
+        self.assertGreater(hi, lo)
+
+
 class MarketTests(unittest.TestCase):
     def test_median_ignores_outliers(self):
         self.assertEqual(filters.market_value([40, 45, 50, 900], 3), 47.5)
@@ -161,6 +184,7 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(deal["market"], 67.5)  # median of 60,65,70,999
         self.assertAlmostEqual(deal["discount"], 0.496, places=3)
         self.assertEqual(deal["psa_status"], "verified")
+        self.assertIn("hold", deal)
         self.assertEqual(sum(scanner.rejected.values()), 3)
 
     def test_early_auction_has_no_discount(self):
