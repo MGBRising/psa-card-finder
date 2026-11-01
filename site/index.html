@@ -93,15 +93,25 @@
   .was s { color: var(--faint); }
   .ship { font-size: 12px; color: var(--muted); margin-top: -6px; }
   .facts { display: flex; flex-wrap: wrap; gap: 5px; }
+  a.chip { text-decoration: none; }
   .chip { font-size: 11.5px; font-weight: 600; padding: 3px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
   .chip.ok { background: var(--good-soft); color: var(--good); }
   .chip.warn { background: var(--warn-soft); color: var(--warn); }
   .actions { margin-top: auto; display: flex; gap: 8px; padding-top: 4px; }
   .btn { flex: 1; display: inline-flex; justify-content: center; align-items: center; height: 38px; border-radius: 10px;
-         font-weight: 700; font-size: 14px; text-decoration: none; }
+         font-weight: 700; font-size: 14px; text-decoration: none; white-space: nowrap; }
   .btn.primary { background: var(--accent); color: var(--accent-ink); }
   .btn.ghost { flex: 0 0 auto; padding: 0 12px; border: 1px solid var(--line); color: var(--text); }
 
+  .icon-btn { flex: 0 0 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface);
+              color: var(--muted); font-size: 17px; cursor: pointer; display: grid; place-items: center; padding: 0; }
+  .icon-btn.on { color: #e0a100; border-color: #e0a100; }
+  .hold { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .hold b { flex: none; font-size: 12px; font-weight: 800; padding: 3px 7px; border-radius: 6px; color: #fff; background: #8a8a96; }
+  .hold b.hi { background: #6d4aff; } .hold b.mid { background: #3b82f6; }
+  .hold span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gone { opacity: .55; }
+  .views { margin-top: 18px; }
   .empty { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 40px 24px;
            text-align: center; max-width: 560px; margin: 30px auto; }
   .empty .icon { font-size: 34px; }
@@ -121,7 +131,7 @@
     .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .price { font-size: 18px; }
     .body { padding: 10px; }
-    .btn.ghost { display: none; }
+    .btn.ghost, .lg { display: none; }
   }
 </style>
 </head>
@@ -159,6 +169,7 @@
     <label class="f"><span>Sort</span>
       <select id="sort">
         <option value="discount">Best deal</option>
+        <option value="hold">Best long-term hold</option>
         <option value="price">Lowest price</option>
         <option value="ending">Ending soon</option>
         <option value="pop">Rarest (PSA pop)</option>
@@ -178,13 +189,16 @@
 </div>
 
 <main class="wrap">
+  <div class="views"><div class="seg" data-key="view">
+    <button data-v="deals">Deals</button><button data-v="watch" id="watchTab">★ Watching</button><button data-v="hidden" id="hiddenTab">Hidden</button>
+  </div></div>
   <div class="meta" id="meta"></div>
   <div id="results"></div>
   <details class="report" id="report"></details>
 </main>
 
 <script>
-const DEFAULTS = { maxPrice: 50, minDiscount: "20", grades: "10", buying: "all", sort: "discount",
+const DEFAULTS = { maxPrice: 50, minDiscount: "20", grades: "10", buying: "all", sort: "discount", view: "deals",
                    showNoMarket: false, showUnverified: true, showNoCert: true };
 const KEY = "psa-finder-settings-v2";
 let data = null;
@@ -196,6 +210,11 @@ function load() {
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} }
 const $ = id => document.getElementById(id);
+
+// Watch / hide lists live in this browser only.
+const LISTS = "psa-finder-lists";
+let lists = (() => { try { return { watch: {}, hide: {}, ...JSON.parse(localStorage.getItem(LISTS) || "{}") }; } catch { return { watch: {}, hide: {} }; } })();
+function saveLists() { try { localStorage.setItem(LISTS, JSON.stringify(lists)); } catch {} }
 
 function syncForm() {
   $("maxPrice").value = s.maxPrice;
@@ -227,15 +246,17 @@ function titleCase(t) {
   return t.split(" ").map(w => KEEP.has(w) || /\d/.test(w) ? w : w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
 }
 
-function cardHtml(d) {
+function cardHtml(d, gone) {
+  const watched = !!lists.watch[d.id], hidden = !!lists.hide[d.id];
   const pct = d.discount != null ? Math.round(d.discount * 100) : null;
   const badge = pct == null ? "" : pct > 0
     ? `<span class="badge">${pct}% under</span>` : `<span class="badge neutral">${Math.abs(pct)}% over</span>`;
-  const cert = d.psa_status === "verified" ? `<span class="chip ok">✓ PSA cert checked</span>`
+  const certLink = label => `<a class="chip ${d.psa_status === "verified" ? "ok" : "warn"}" href="https://www.psacard.com/cert/${esc(d.cert)}" target="_blank" rel="noopener">${label} ↗</a>`;
+  const cert = d.psa_status === "verified" ? certLink("✓ PSA cert checked")
     : d.psa_status === "no_cert" ? `<span class="chip warn">No cert #, check photos</span>`
-    : `<span class="chip warn">Cert not checked yet</span>`;
+    : certLink("Cert not checked yet");
   return `
-  <article class="card">
+  <article class="card${gone ? " gone" : ""}">
     <div class="shot">
       ${d.image ? `<img loading="lazy" src="${esc(d.image)}" alt="">` : `<span class="ph">No photo</span>`}
       ${badge}<span class="grade">PSA ${esc(d.grade)}</span>
@@ -247,16 +268,19 @@ function cardHtml(d) {
         ${d.market ? `<span class="was">market <s>${money(d.market)}</s></span>` : `<span class="was">no market price yet</span>`}
         ${d.buying === "auction" ? `<span class="was">current bid</span>` : ""}
       </div>
+      ${d.hold != null ? `<div class="hold" title="${esc((d.hold_why || []).join(", "))}"><b class="${d.hold >= 70 ? "hi" : d.hold >= 50 ? "mid" : ""}">Hold ${d.hold}</b><span>${esc((d.hold_why || []).map(r => r.replace(/ \([+-]\d+\)$/, "")).join(" · "))}</span></div>` : ""}
       <div class="ship">${d.shipping ? "incl. " + money(d.shipping) + " shipping" : "free shipping"}</div>
       <div class="facts">
         ${pct != null && pct >= 70 ? `<span class="chip warn">Looks too good, double-check</span>` : ""}
         ${cert}
+        ${gone ? `<span class="chip warn">No longer listed</span>` : ""}
         ${d.buying === "auction" ? `<span class="chip warn">Auction · ${d.bids ?? 0} bids · ${timeLeft(d.ends)}</span>` : ""}
         ${d.population ? `<span class="chip">Pop ${Number(d.population).toLocaleString()}</span>` : ""}
       </div>
       <div class="actions">
-        <a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener">View on eBay</a>
-        ${d.cert ? `<a class="btn ghost" href="https://www.psacard.com/cert/${esc(d.cert)}" target="_blank" rel="noopener">Cert</a>` : ""}
+        <a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener"><span class="lg">View on&nbsp;</span>eBay</a>
+        <button class="icon-btn${watched ? " on" : ""}" data-act="watch" data-id="${esc(d.id)}" title="${watched ? "Stop watching" : "Watch"}">${watched ? "★" : "☆"}</button>
+        <button class="icon-btn" data-act="hide" data-id="${esc(d.id)}" title="${hidden ? "Unhide" : "Hide"}">${hidden ? "↺" : "✕"}</button>
       </div>
     </div>
   </article>`;
@@ -277,9 +301,28 @@ function render() {
     $("report").innerHTML = "";
     return;
   }
+  $("watchTab").textContent = `★ Watching (${Object.keys(lists.watch).length})`;
+  $("hiddenTab").textContent = `Hidden (${Object.keys(lists.hide).length})`;
+  const live = new Map(data.deals.map(d => [d.id, d]));
+  if (s.view === "watch") {
+    const items = Object.values(lists.watch).map(snap => live.get(snap.id) || snap);
+    $("meta").innerHTML = `<h2>${items.length} watching</h2><span class="sub">Tap ☆ on any card to add it here</span>`;
+    $("results").innerHTML = items.length ? `<div class="grid">${items.map(d => cardHtml(d, !live.has(d.id))).join("")}</div>`
+      : empty("☆", "Nothing on your watchlist yet", "Tap the star on a card to keep an eye on it.");
+    $("report").innerHTML = "";
+    return;
+  }
+  if (s.view === "hidden") {
+    const items = data.deals.filter(d => lists.hide[d.id]);
+    $("meta").innerHTML = `<h2>${items.length} hidden</h2><span class="sub">Tap ↺ to bring a card back</span>`;
+    $("results").innerHTML = items.length ? `<div class="grid">${items.map(d => cardHtml(d)).join("")}</div>`
+      : empty("✕", "No hidden cards", "Tap ✕ on a card you're not interested in and it won't show up again.");
+    $("report").innerHTML = "";
+    return;
+  }
   const grades = s.grades.split(",");
   const min = Number(s.minDiscount);
-  const deals = data.deals.filter(d =>
+  const deals = data.deals.filter(d => !lists.hide[d.id] &&
     d.total <= s.maxPrice && grades.includes(d.grade) &&
     (s.buying === "all" || d.buying === s.buying) &&
     (d.psa_status === "no_cert" ? s.showNoCert : (s.showUnverified || d.psa_status === "verified")) &&
@@ -290,13 +333,14 @@ function render() {
     price: (a, b) => a.total - b.total,
     ending: (a, b) => (a.ends ? new Date(a.ends) : Infinity) - (b.ends ? new Date(b.ends) : Infinity),
     pop: (a, b) => (a.population ?? 1e9) - (b.population ?? 1e9),
+    hold: (a, b) => (b.hold ?? -1) - (a.hold ?? -1) || (b.discount ?? -9) - (a.discount ?? -9),
   }[s.sort]);
 
   const st = data.stats || {};
   const junk = Object.values(st.rejected || {}).reduce((a, b) => a + b, 0);
   $("meta").innerHTML = `<h2>${deals.length} ${deals.length === 1 ? "deal" : "deals"}</h2>
     <span class="sub">${(st.listings_seen ?? 0).toLocaleString()} listings scanned · ${junk.toLocaleString()} junk listings removed</span>`;
-  $("results").innerHTML = deals.length ? `<div class="grid">${deals.map(cardHtml).join("")}</div>`
+  $("results").innerHTML = deals.length ? `<div class="grid">${deals.map(d => cardHtml(d)).join("")}</div>`
     : empty("🔍", "Nothing matches right now", "Try a higher max price, a smaller discount, or include PSA 9.");
 
   const reasons = Object.entries(st.rejected || {});
@@ -314,6 +358,16 @@ function bind() {
   for (const k of ["showNoCert", "showUnverified", "showNoMarket"]) $(k).addEventListener("change", e => { s[k] = e.target.checked; render(); });
   $("reset").addEventListener("click", () => { s = { ...DEFAULTS }; render(); });
   document.addEventListener("click", e => { if (!$("more").contains(e.target)) $("more").open = false; });
+  $("results").addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const id = b.dataset.id, d = data.deals.find(x => x.id === id) || lists.watch[id];
+    if (b.dataset.act === "watch") {
+      if (lists.watch[id]) delete lists.watch[id]; else if (d) lists.watch[id] = d;
+    } else {
+      if (lists.hide[id]) delete lists.hide[id]; else lists.hide[id] = Date.now();
+    }
+    saveLists(); render();
+  });
 }
 let t; function renderLater() { clearTimeout(t); t = setTimeout(() => { const v = $("maxPrice").value; render(); $("maxPrice").value = v; }, 250); }
 

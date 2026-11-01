@@ -21,8 +21,12 @@ Every 6 hours a GitHub Action runs the scanner (`scanner/`):
 5. **Estimate the typical price** from other listings of the same card and grade
    (the median, so a few crazy asking prices don't skew it), and work out how far
    below that the listing is.
-6. Save everything to `site/deals.json`. The page (`site/index.html`) filters it with your settings,
-   which are remembered in your browser.
+6. **Hold score (0–100)** for a 10+ year hold: iconic Pokémon, alt art / special illustration,
+   1st Edition / Shadowless, vintage year, low PSA population, PSA 10. Each point source is
+   shown on the card. Logic lives in `scanner/hold.py`.
+7. Save everything to `site/deals.json`. The page (`site/index.html`) filters it with your settings,
+   which are remembered in your browser. ☆ Watch and ✕ Hide buttons on each card are
+   also saved in that browser (they don't sync between phone and computer).
 
 Note: PSA doesn't give 9.5 grades (that's BGS/CGC), so the grades here are 10 and 9.
 

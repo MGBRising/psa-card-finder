@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import filters
+from .hold import hold_score
 from .ebay import EbayClient
 from .psa import PsaAuthError, PsaClient, PsaLimitReached
 
@@ -209,6 +210,7 @@ class Scanner:
             if is_auction and not filters.ending_soon(s.get("itemEndDate")):
                 discount = None  # an early bid says nothing about the final price
 
+            hold, hold_why = hold_score(s.get("title", ""), grade, cert)
             deals.append({
                 "id": item_id,
                 "title": s.get("title"),
@@ -229,6 +231,8 @@ class Scanner:
                     (cert or {}).get("Subject"),
                     f"#{cert['CardNumber']}" if cert and cert.get("CardNumber") else None,
                 ])) or None,
+                "hold": hold,
+                "hold_why": hold_why,
                 "population": (cert or {}).get("TotalPopulation"),
                 "pop_higher": (cert or {}).get("PopulationHigher"),
                 "market": market,
