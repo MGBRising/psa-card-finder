@@ -8,7 +8,6 @@ Writes site/deals.json for the deals page.
 
 import json
 import os
-import sys
 import time
 from collections import Counter
 from datetime import datetime, timezone
@@ -238,8 +237,9 @@ def main():
     app_id = os.environ.get("EBAY_APP_ID")
     cert_id = os.environ.get("EBAY_CERT_ID")
     if not app_id or not cert_id:
-        print("Missing EBAY_APP_ID / EBAY_CERT_ID. Add them as GitHub secrets (see README).")
-        sys.exit(1)
+        # Not an error: the page still publishes, it just has no deals yet.
+        print("No eBay keys yet (EBAY_APP_ID / EBAY_CERT_ID). Skipping the scan; see README.")
+        return
     psa_token = os.environ.get("PSA_TOKEN")
     if not psa_token:
         print("No PSA_TOKEN set: cert numbers will not be checked with PSA.")
