@@ -4,250 +4,332 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PSA Card Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f6f5f2; --panel: #ffffff; --text: #1d1d1f; --muted: #6b6b70;
-    --line: #e3e1dc; --accent: #c8102e; --good: #1f7a3a; --good-bg: #e5f4ea;
-    --warn: #8a5a00; --warn-bg: #fdf1d8; --chip: #efeee9;
+    --bg: #f4f4f6; --surface: #ffffff; --surface-2: #f8f8fa; --text: #15151a;
+    --muted: #6e6e78; --faint: #a0a0aa; --line: #e6e6eb;
+    --accent: #d7263d; --accent-ink: #ffffff; --accent-soft: #fde8eb;
+    --good: #12805c; --good-soft: #e3f5ee; --warn: #9a6200; --warn-soft: #fdf3dc;
+    --shadow: 0 1px 2px rgba(20,20,30,.04), 0 4px 16px rgba(20,20,30,.06);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #141416; --panel: #1e1e21; --text: #ececee; --muted: #9a9aa1;
-      --line: #2e2e33; --accent: #ff4d63; --good: #6fd38f; --good-bg: #183323;
-      --warn: #f2c063; --warn-bg: #3a2d10; --chip: #2a2a2f;
+      --bg: #0f0f12; --surface: #1a1a1f; --surface-2: #222228; --text: #f1f1f4;
+      --muted: #a2a2ad; --faint: #6c6c76; --line: #2c2c33;
+      --accent: #ff4d63; --accent-ink: #ffffff; --accent-soft: #3a1a20;
+      --good: #4fd1a0; --good-soft: #13302a; --warn: #f2c063; --warn-soft: #33290f;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
     }
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  header { padding: 20px 16px 8px; max-width: 1200px; margin: 0 auto; }
-  h1 { margin: 0; font-size: 22px; }
-  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  main { max-width: 1200px; margin: 0 auto; padding: 8px 16px 40px; }
-  details.settings { background: var(--panel); border: 1px solid var(--line);
-                     border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }
-  details.settings summary { cursor: pointer; font-weight: 600; }
-  .grid-settings { display: grid; gap: 14px 24px; margin-top: 12px;
-                   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
-  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-  input[type=number], select { width: 100%; padding: 8px 10px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 15px; }
-  .checks label { display: inline-flex; gap: 6px; align-items: center; margin-right: 14px;
-                  color: var(--text); font-size: 15px; }
-  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
-  button.reset { margin-top: 12px; background: none; border: 1px solid var(--line);
-    color: var(--muted); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; font-size: 13px; }
-  .pill { background: var(--chip); border-radius: 999px; padding: 4px 10px; }
-  .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-          overflow: hidden; display: flex; flex-direction: column; }
-  .card .img { aspect-ratio: 3/4; background: var(--chip); display: flex;
-               align-items: center; justify-content: center; }
-  .card img { width: 100%; height: 100%; object-fit: contain; }
-  .card .body { padding: 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-  .title { font-size: 14px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 3;
-           -webkit-box-orient: vertical; overflow: hidden; }
-  .cardname { font-size: 12px; color: var(--muted); }
-  .price { font-size: 22px; font-weight: 700; }
-  .price small { font-size: 12px; font-weight: 400; color: var(--muted); }
-  .row { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
-  .tag { border-radius: 6px; padding: 2px 7px; background: var(--chip); }
-  .tag.deal { background: var(--good-bg); color: var(--good); font-weight: 700; }
-  .tag.warn { background: var(--warn-bg); color: var(--warn); }
-  .tag.ok { background: var(--good-bg); color: var(--good); }
-  .market { font-size: 13px; color: var(--muted); }
-  .links { margin-top: auto; display: flex; gap: 8px; padding-top: 6px; }
-  .links a { flex: 1; text-align: center; text-decoration: none; border-radius: 8px;
-             padding: 8px; font-size: 14px; font-weight: 600; }
-  .links a.ebay { background: var(--accent); color: #fff; }
-  .links a.cert { border: 1px solid var(--line); color: var(--text); }
-  .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
-  .why { margin-top: 24px; font-size: 13px; color: var(--muted); }
-  .why ul { margin: 6px 0 0; padding-left: 18px; }
+         font: 15px/1.45 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+
+  /* Top bar */
+  .top { background: var(--surface); border-bottom: 1px solid var(--line); }
+  .top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 14px; padding-bottom: 14px; }
+  .logo { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: var(--accent-ink);
+          display: grid; place-items: center; font-weight: 800; font-size: 13px; letter-spacing: .5px; flex: none; }
+  .brand h1 { margin: 0; font-size: 17px; font-weight: 700; }
+  .brand .status { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+  .dot.wait { background: var(--warn); }
+
+  /* Filters */
+  .filters { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  .filters .wrap { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; padding-top: 12px; padding-bottom: 12px; }
+  .f { display: flex; flex-direction: column; gap: 5px; }
+  .f > span { font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .money { display: flex; align-items: center; background: var(--surface-2); border: 1px solid var(--line);
+           border-radius: 10px; padding: 0 10px; height: 36px; }
+  .money b { color: var(--muted); font-weight: 500; }
+  .money input { border: 0; background: transparent; color: var(--text); font: inherit; font-weight: 600;
+                 width: 70px; padding: 0 0 0 4px; outline: none; }
+  .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; height: 36px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 600;
+                padding: 0 11px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+  select { appearance: none; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2)
+           url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center;
+           color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; padding: 0 30px 0 11px; }
+  .more { margin-left: auto; }
+  .more summary { list-style: none; cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--muted);
+                  height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 4px; }
+  .more summary::-webkit-details-marker { display: none; }
+  .more[open] summary { color: var(--text); }
+  .more-panel { position: absolute; right: 16px; margin-top: 6px; background: var(--surface); border: 1px solid var(--line);
+                border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; display: grid; gap: 10px; width: 290px; z-index: 6; }
+  .more-panel label { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+  .more-panel input { margin-top: 3px; accent-color: var(--accent); }
+  .more-panel .hint { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 9px; }
+  .more-panel button { justify-self: start; border: 0; background: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; padding: 0; cursor: pointer; }
+
+  /* Results */
+  .meta { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; margin: 20px 0 14px; }
+  .meta h2 { margin: 0; font-size: 20px; font-weight: 700; }
+  .meta .sub { font-size: 13px; color: var(--muted); }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .card { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;
+          display: flex; flex-direction: column; transition: transform .15s; }
+  .card:hover { transform: translateY(-2px); }
+  .shot { position: relative; aspect-ratio: 4/5; background: var(--surface-2); display: grid; place-items: center; }
+  .shot img { width: 100%; height: 100%; object-fit: contain; }
+  .shot .ph { color: var(--faint); font-size: 13px; }
+  .badge { position: absolute; top: 10px; left: 10px; background: var(--good); color: #fff; font-weight: 800;
+           font-size: 13px; padding: 4px 9px; border-radius: 8px; }
+  .badge.neutral { background: rgba(20,20,26,.7); }
+  .grade { position: absolute; top: 10px; right: 10px; background: var(--accent); color: #fff; font-weight: 700;
+           font-size: 12px; padding: 4px 8px; border-radius: 8px; }
+  .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .name { font-size: 14px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
+  .prices { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .price { font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+  .was { font-size: 13px; color: var(--muted); }
+  .was s { color: var(--faint); }
+  .ship { font-size: 12px; color: var(--muted); margin-top: -6px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { font-size: 11.5px; font-weight: 600; padding: 3px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
+  .chip.ok { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .actions { margin-top: auto; display: flex; gap: 8px; padding-top: 4px; }
+  .btn { flex: 1; display: inline-flex; justify-content: center; align-items: center; height: 38px; border-radius: 10px;
+         font-weight: 700; font-size: 14px; text-decoration: none; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.ghost { flex: 0 0 auto; padding: 0 12px; border: 1px solid var(--line); color: var(--text); }
+
+  .empty { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 40px 24px;
+           text-align: center; max-width: 560px; margin: 30px auto; }
+  .empty .icon { font-size: 34px; }
+  .empty h3 { margin: 10px 0 6px; font-size: 18px; }
+  .empty p { margin: 0; color: var(--muted); }
+
+  .report { margin: 34px 0 40px; font-size: 13px; color: var(--muted); }
+  .report:empty { display: none; }
+  .report summary { cursor: pointer; font-weight: 600; }
+  .report ul { margin: 8px 0 0; padding-left: 18px; }
+
+  @media (max-width: 640px) {
+    .filters { position: static; }
+    .filters .wrap { gap: 10px 12px; }
+    .more { margin-left: 0; }
+    .more-panel { left: 16px; right: 16px; width: auto; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .price { font-size: 18px; }
+    .body { padding: 10px; }
+    .btn.ghost { display: none; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>PSA Card Finder</h1>
-  <div class="sub" id="updated">Loading…</div>
-</header>
-<main>
-  <details class="settings" id="settings" open>
-    <summary>My settings</summary>
-    <div class="grid-settings">
-      <div>
-        <label for="maxPrice">Max total price (incl. shipping), $</label>
-        <input type="number" id="maxPrice" min="1" step="1">
-        <div class="hint" id="scanCapHint"></div>
-      </div>
-      <div>
-        <label for="minDiscount">Only show deals at least this % below market</label>
-        <input type="number" id="minDiscount" min="0" max="90" step="5">
-        <div class="hint">0 shows everything that passed the checks.</div>
-      </div>
-      <div>
-        <label>Grades</label>
-        <div class="checks">
-          <label><input type="checkbox" id="g10"> PSA 10</label>
-          <label><input type="checkbox" id="g9"> PSA 9</label>
-        </div>
-      </div>
-      <div>
-        <label for="buying">Listing type</label>
-        <select id="buying">
-          <option value="all">Buy It Now + auctions</option>
-          <option value="buy_now">Buy It Now only</option>
-          <option value="auction">Auctions only</option>
-        </select>
-      </div>
-      <div>
-        <label for="sort">Sort by</label>
-        <select id="sort">
-          <option value="discount">Biggest discount</option>
-          <option value="price">Lowest price</option>
-          <option value="ending">Ending soonest</option>
-          <option value="pop">Lowest PSA population</option>
-        </select>
-      </div>
-      <div>
-        <label>Also show</label>
-        <div class="checks">
-          <label><input type="checkbox" id="showNoMarket"> Cards without a market price</label>
-        </div>
-        <div class="checks">
-          <label><input type="checkbox" id="showUnverified"> Certs not yet checked with PSA</label>
-        </div>
-        <div class="checks">
-          <label><input type="checkbox" id="showNoCert"> Listings with no cert # filled in</label>
-        </div>
+<div class="top">
+  <div class="wrap">
+    <div class="logo">PSA</div>
+    <div class="brand">
+      <h1>PSA Card Finder</h1>
+      <div class="status"><span class="dot wait" id="dot"></span><span id="updated">Loading…</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="filters">
+  <div class="wrap">
+    <label class="f"><span>Max price</span>
+      <div class="money"><b>$</b><input type="number" id="maxPrice" min="1" step="5" inputmode="numeric"></div>
+    </label>
+    <div class="f"><span>Below market</span>
+      <div class="seg" data-key="minDiscount">
+        <button data-v="0">Any</button><button data-v="10">10%+</button><button data-v="20">20%+</button><button data-v="35">35%+</button>
       </div>
     </div>
-    <button class="reset" id="reset">Reset to defaults</button>
-  </details>
+    <div class="f"><span>Grade</span>
+      <div class="seg" data-key="grades">
+        <button data-v="10">PSA 10</button><button data-v="10,9">10 + 9</button>
+      </div>
+    </div>
+    <div class="f"><span>Type</span>
+      <div class="seg" data-key="buying">
+        <button data-v="all">All</button><button data-v="buy_now">Buy now</button><button data-v="auction">Auction</button>
+      </div>
+    </div>
+    <label class="f"><span>Sort</span>
+      <select id="sort">
+        <option value="discount">Best deal</option>
+        <option value="price">Lowest price</option>
+        <option value="ending">Ending soon</option>
+        <option value="pop">Rarest (PSA pop)</option>
+      </select>
+    </label>
+    <details class="more" id="more">
+      <summary>More filters ▾</summary>
+      <div class="more-panel">
+        <label><input type="checkbox" id="showNoCert"> Show listings with no cert number</label>
+        <label><input type="checkbox" id="showUnverified"> Show certs PSA hasn't checked yet</label>
+        <label><input type="checkbox" id="showNoMarket"> Show cards with no market price</label>
+        <div class="hint" id="scanCapHint"></div>
+        <button id="reset">Reset all filters</button>
+      </div>
+    </details>
+  </div>
+</div>
 
-  <div class="summary" id="summary"></div>
-  <div class="cards" id="cards"></div>
-  <div class="why" id="why"></div>
+<main class="wrap">
+  <div class="meta" id="meta"></div>
+  <div id="results"></div>
+  <details class="report" id="report"></details>
 </main>
 
 <script>
-const DEFAULTS = { maxPrice: 50, minDiscount: 20, g10: true, g9: false, buying: "all",
-                   sort: "discount", showNoMarket: false, showUnverified: true, showNoCert: true };
-const KEY = "psa-finder-settings";
+const DEFAULTS = { maxPrice: 50, minDiscount: "20", grades: "10", buying: "all", sort: "discount",
+                   showNoMarket: false, showUnverified: true, showNoCert: true };
+const KEY = "psa-finder-settings-v2";
 let data = null;
+let s = load();
 
-function loadSettings() {
+function load() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; }
   catch { return { ...DEFAULTS }; }
 }
-function saveSettings(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} }
+const $ = id => document.getElementById(id);
 
-function readForm() {
-  const v = id => document.getElementById(id);
-  return {
-    maxPrice: Number(v("maxPrice").value) || DEFAULTS.maxPrice,
-    minDiscount: Number(v("minDiscount").value) || 0,
-    g10: v("g10").checked, g9: v("g9").checked,
-    buying: v("buying").value, sort: v("sort").value,
-    showNoMarket: v("showNoMarket").checked, showUnverified: v("showUnverified").checked,
-    showNoCert: v("showNoCert").checked,
-  };
-}
-function writeForm(s) {
-  const v = id => document.getElementById(id);
-  v("maxPrice").value = s.maxPrice; v("minDiscount").value = s.minDiscount;
-  v("g10").checked = s.g10; v("g9").checked = s.g9;
-  v("buying").value = s.buying; v("sort").value = s.sort;
-  v("showNoMarket").checked = s.showNoMarket; v("showUnverified").checked = s.showUnverified;
-  v("showNoCert").checked = s.showNoCert;
+function syncForm() {
+  $("maxPrice").value = s.maxPrice;
+  $("sort").value = s.sort;
+  for (const k of ["showNoCert", "showUnverified", "showNoMarket"]) $(k).checked = s[k];
+  document.querySelectorAll(".seg").forEach(seg => {
+    seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(s[seg.dataset.key]))));
+  });
 }
 
-const money = n => n == null ? "?" : "$" + Number(n).toFixed(2);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-
+const money = n => n == null ? "?" : "$" + (n >= 100 ? Math.round(n) : Number(n).toFixed(2));
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 function timeLeft(iso) {
   if (!iso) return "";
   const ms = new Date(iso) - Date.now();
   if (ms <= 0) return "ended";
   const h = Math.floor(ms / 3.6e6);
-  return h >= 48 ? Math.floor(h / 24) + "d left" : h + "h left";
+  return h >= 48 ? Math.floor(h / 24) + "d left" : h >= 1 ? h + "h left" : Math.ceil(ms / 6e4) + "m left";
+}
+function ago(iso) {
+  const m = Math.round((Date.now() - new Date(iso)) / 6e4);
+  if (m < 60) return m <= 1 ? "just now" : m + " min ago";
+  const h = Math.round(m / 60);
+  return h < 48 ? h + "h ago" : Math.round(h / 24) + " days ago";
+}
+
+const KEEP = new Set(["EX", "GX", "V", "VMAX", "VSTAR", "SV", "TCG", "LV.X", "BREAK", "II", "III"]);
+function titleCase(t) {
+  return t.split(" ").map(w => KEEP.has(w) || /\d/.test(w) ? w : w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
+}
+
+function cardHtml(d) {
+  const pct = d.discount != null ? Math.round(d.discount * 100) : null;
+  const badge = pct == null ? "" : pct > 0
+    ? `<span class="badge">${pct}% under</span>` : `<span class="badge neutral">${Math.abs(pct)}% over</span>`;
+  const cert = d.psa_status === "verified" ? `<span class="chip ok">✓ PSA cert checked</span>`
+    : d.psa_status === "no_cert" ? `<span class="chip warn">No cert #, check photos</span>`
+    : `<span class="chip warn">Cert not checked yet</span>`;
+  return `
+  <article class="card">
+    <div class="shot">
+      ${d.image ? `<img loading="lazy" src="${esc(d.image)}" alt="">` : `<span class="ph">No photo</span>`}
+      ${badge}<span class="grade">PSA ${esc(d.grade)}</span>
+    </div>
+    <div class="body">
+      <div class="name" title="${esc(d.title)}">${esc(d.card ? titleCase(d.card) : d.title)}</div>
+      <div class="prices">
+        <span class="price">${money(d.total)}</span>
+        ${d.market ? `<span class="was">market <s>${money(d.market)}</s></span>` : `<span class="was">no market price yet</span>`}
+      </div>
+      <div class="ship">${d.shipping ? "incl. " + money(d.shipping) + " shipping" : "free shipping"}</div>
+      <div class="facts">
+        ${cert}
+        ${d.buying === "auction" ? `<span class="chip warn">Auction · ${d.bids ?? 0} bids · ${timeLeft(d.ends)}</span>` : ""}
+        ${d.population ? `<span class="chip">Pop ${Number(d.population).toLocaleString()}</span>` : ""}
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener">View on eBay</a>
+        ${d.cert ? `<a class="btn ghost" href="https://www.psacard.com/cert/${esc(d.cert)}" target="_blank" rel="noopener">Cert</a>` : ""}
+      </div>
+    </div>
+  </article>`;
+}
+
+function empty(icon, title, text) {
+  return `<div class="empty"><div class="icon">${icon}</div><h3>${title}</h3><p>${text}</p></div>`;
 }
 
 function render() {
-  const s = readForm();
-  saveSettings(s);
+  syncForm();
+  save();
   if (!data) return;
-  const grades = [s.g10 && "10", s.g9 && "9"].filter(Boolean);
-  let deals = data.deals.filter(d =>
-    d.total <= s.maxPrice &&
-    grades.includes(d.grade) &&
+  if (!data.generated_at) {
+    $("meta").innerHTML = "";
+    $("results").innerHTML = empty("⏳", "Waiting for the first scan",
+      "Results will show up here after the scanner's first run with your eBay keys. It then refreshes every 6 hours.");
+    $("report").innerHTML = "";
+    return;
+  }
+  const grades = s.grades.split(",");
+  const min = Number(s.minDiscount);
+  const deals = data.deals.filter(d =>
+    d.total <= s.maxPrice && grades.includes(d.grade) &&
     (s.buying === "all" || d.buying === s.buying) &&
     (d.psa_status === "no_cert" ? s.showNoCert : (s.showUnverified || d.psa_status === "verified")) &&
-    (d.discount == null ? s.showNoMarket : d.discount * 100 >= s.minDiscount)
-  );
-  const sorters = {
+    (d.discount == null ? s.showNoMarket : d.discount * 100 >= min)
+  ).sort({
     discount: (a, b) => (b.discount ?? -9) - (a.discount ?? -9),
     price: (a, b) => a.total - b.total,
     ending: (a, b) => (a.ends ? new Date(a.ends) : Infinity) - (b.ends ? new Date(b.ends) : Infinity),
     pop: (a, b) => (a.population ?? 1e9) - (b.population ?? 1e9),
-  };
-  deals.sort(sorters[s.sort]);
+  }[s.sort]);
 
   const st = data.stats || {};
-  const rejected = Object.values(st.rejected || {}).reduce((a, b) => a + b, 0);
-  document.getElementById("summary").innerHTML = `
-    <span class="pill"><b>${deals.length}</b> matching your settings</span>
-    <span class="pill">${st.listings_seen ?? 0} listings scanned</span>
-    <span class="pill">${rejected} filtered out as junk or mismatched</span>`;
-
-  document.getElementById("cards").innerHTML = deals.length ? deals.map(d => `
-    <div class="card">
-      <div class="img">${d.image ? `<img loading="lazy" src="${esc(d.image)}" alt="">` : ""}</div>
-      <div class="body">
-        <div class="title">${esc(d.title)}</div>
-        ${d.card ? `<div class="cardname">PSA label: ${esc(d.card)}</div>` : ""}
-        <div class="price">${money(d.total)} <small>${d.shipping ? "incl. " + money(d.shipping) + " ship" : "free ship"}</small></div>
-        <div class="market">${d.market ? `Typical price ${money(d.market)} (${d.comps} listings)` : "Not enough listings to price this card"}</div>
-        <div class="row">
-          ${d.discount != null ? `<span class="tag ${d.discount > 0 ? "deal" : ""}">${Math.round(d.discount * 100)}% ${d.discount >= 0 ? "below" : "above"} market</span>` : ""}
-          <span class="tag">PSA ${esc(d.grade)}</span>
-          ${d.psa_status === "verified" ? `<span class="tag ok">Cert checked</span>`
-            : d.psa_status === "no_cert" ? `<span class="tag warn">No cert # listed: check photos</span>`
-            : `<span class="tag warn">Cert not checked yet</span>`}
-          ${d.population ? `<span class="tag">Pop ${esc(d.population)}</span>` : ""}
-          ${d.buying === "auction" ? `<span class="tag warn">Auction · ${d.bids ?? 0} bids · ${timeLeft(d.ends)}</span>` : ""}
-          ${d.feedback ? `<span class="tag">Seller ${esc(d.feedback)}%</span>` : ""}
-        </div>
-        <div class="links">
-          <a class="ebay" href="${esc(d.url)}" target="_blank" rel="noopener">View on eBay</a>
-          ${d.cert ? `<a class="cert" href="https://www.psacard.com/cert/${esc(d.cert)}" target="_blank" rel="noopener">PSA cert</a>` : ""}
-        </div>
-      </div>
-    </div>`).join("")
-    : `<div class="empty">No cards match right now. Try a higher max price or a lower discount.</div>`;
+  const junk = Object.values(st.rejected || {}).reduce((a, b) => a + b, 0);
+  $("meta").innerHTML = `<h2>${deals.length} ${deals.length === 1 ? "deal" : "deals"}</h2>
+    <span class="sub">${(st.listings_seen ?? 0).toLocaleString()} listings scanned · ${junk.toLocaleString()} junk listings removed</span>`;
+  $("results").innerHTML = deals.length ? `<div class="grid">${deals.map(cardHtml).join("")}</div>`
+    : empty("🔍", "Nothing matches right now", "Try a higher max price, a smaller discount, or include PSA 9.");
 
   const reasons = Object.entries(st.rejected || {});
-  document.getElementById("why").innerHTML = reasons.length
-    ? `<b>Why listings were filtered out in the last scan</b><ul>${reasons.map(([r, n]) => `<li>${esc(r)}: ${n}</li>`).join("")}</ul>` : "";
+  $("report").innerHTML = reasons.length
+    ? `<summary>Why ${junk.toLocaleString()} listings were removed</summary><ul>${reasons.map(([r, n]) => `<li>${esc(r)}: ${n}</li>`).join("")}</ul>` : "";
 }
 
+function bind() {
+  document.querySelectorAll(".seg").forEach(seg => seg.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    s[seg.dataset.key] = b.dataset.v; render();
+  }));
+  $("maxPrice").addEventListener("input", e => { s.maxPrice = Number(e.target.value) || DEFAULTS.maxPrice; save(); renderLater(); });
+  $("sort").addEventListener("change", e => { s.sort = e.target.value; render(); });
+  for (const k of ["showNoCert", "showUnverified", "showNoMarket"]) $(k).addEventListener("change", e => { s[k] = e.target.checked; render(); });
+  $("reset").addEventListener("click", () => { s = { ...DEFAULTS }; render(); });
+  document.addEventListener("click", e => { if (!$("more").contains(e.target)) $("more").open = false; });
+}
+let t; function renderLater() { clearTimeout(t); t = setTimeout(() => { const v = $("maxPrice").value; render(); $("maxPrice").value = v; }, 250); }
+
 async function init() {
-  writeForm(loadSettings());
-  document.getElementById("settings").addEventListener("input", render);
-  document.getElementById("reset").addEventListener("click", () => { writeForm(DEFAULTS); render(); });
+  bind(); syncForm();
   try {
-    const res = await fetch("deals.json", { cache: "no-store" });
-    data = await res.json();
+    data = await (await fetch("deals.json", { cache: "no-store" })).json();
   } catch {
-    document.getElementById("updated").textContent = "Could not load deals yet.";
+    $("updated").textContent = "Couldn't load deals";
+    $("results").innerHTML = empty("⚠️", "Couldn't load deals", "Try refreshing the page in a minute.");
     return;
   }
-  document.getElementById("updated").textContent = data.generated_at
-    ? "Last scan: " + new Date(data.generated_at).toLocaleString()
-    : "Waiting for the first scan.";
-  document.getElementById("scanCapHint").textContent =
-    `The scanner collects cards up to $${data.scan_max_price}. To go higher, ask Claude to raise it.`;
+  if (data.generated_at) {
+    $("updated").textContent = "Updated " + ago(data.generated_at);
+    $("dot").classList.remove("wait");
+  } else {
+    $("updated").textContent = "Waiting for first scan";
+  }
+  $("scanCapHint").textContent = `The scanner collects cards up to $${data.scan_max_price}. Ask Claude to raise it.`;
   render();
 }
 init();
