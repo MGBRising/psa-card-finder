@@ -1,0 +1,53 @@
+name: Scan eBay
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # every 6 hours
+  workflow_dispatch:          # "Run workflow" button for an on-demand scan
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run tests
+        run: python -m unittest discover -s tests -t .
+      - name: Scan eBay
+        env:
+          EBAY_APP_ID: ${{ secrets.EBAY_APP_ID }}
+          EBAY_CERT_ID: ${{ secrets.EBAY_CERT_ID }}
+          PSA_TOKEN: ${{ secrets.PSA_TOKEN }}
+        run: python -m scanner.scan
+      - name: Save results
+        run: |
+          git config user.name "psa-card-finder bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add site/deals.json data/cache.json
+          git diff --cached --quiet || git commit -m "Update deals"
+          git push
+      - name: Package page
+        if: ${{ vars.PUBLISH_PAGE == 'true' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: scan
+    if: ${{ vars.PUBLISH_PAGE == 'true' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/deploy-pages@v4
