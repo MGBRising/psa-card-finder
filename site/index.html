@@ -118,6 +118,9 @@
         <div class="checks">
           <label><input type="checkbox" id="showUnverified"> Certs not yet checked with PSA</label>
         </div>
+        <div class="checks">
+          <label><input type="checkbox" id="showNoCert"> Listings with no cert # filled in</label>
+        </div>
       </div>
     </div>
     <button class="reset" id="reset">Reset to defaults</button>
@@ -130,7 +133,7 @@
 
 <script>
 const DEFAULTS = { maxPrice: 50, minDiscount: 20, g10: true, g9: false, buying: "all",
-                   sort: "discount", showNoMarket: false, showUnverified: true };
+                   sort: "discount", showNoMarket: false, showUnverified: true, showNoCert: true };
 const KEY = "psa-finder-settings";
 let data = null;
 
@@ -148,6 +151,7 @@ function readForm() {
     g10: v("g10").checked, g9: v("g9").checked,
     buying: v("buying").value, sort: v("sort").value,
     showNoMarket: v("showNoMarket").checked, showUnverified: v("showUnverified").checked,
+    showNoCert: v("showNoCert").checked,
   };
 }
 function writeForm(s) {
@@ -156,6 +160,7 @@ function writeForm(s) {
   v("g10").checked = s.g10; v("g9").checked = s.g9;
   v("buying").value = s.buying; v("sort").value = s.sort;
   v("showNoMarket").checked = s.showNoMarket; v("showUnverified").checked = s.showUnverified;
+  v("showNoCert").checked = s.showNoCert;
 }
 
 const money = n => n == null ? "?" : "$" + Number(n).toFixed(2);
@@ -178,7 +183,7 @@ function render() {
     d.total <= s.maxPrice &&
     grades.includes(d.grade) &&
     (s.buying === "all" || d.buying === s.buying) &&
-    (s.showUnverified || d.psa_status === "verified") &&
+    (d.psa_status === "no_cert" ? s.showNoCert : (s.showUnverified || d.psa_status === "verified")) &&
     (d.discount == null ? s.showNoMarket : d.discount * 100 >= s.minDiscount)
   );
   const sorters = {
@@ -207,7 +212,9 @@ function render() {
         <div class="row">
           ${d.discount != null ? `<span class="tag ${d.discount > 0 ? "deal" : ""}">${Math.round(d.discount * 100)}% ${d.discount >= 0 ? "below" : "above"} market</span>` : ""}
           <span class="tag">PSA ${esc(d.grade)}</span>
-          ${d.psa_status === "verified" ? `<span class="tag ok">Cert checked</span>` : `<span class="tag warn">Cert not checked yet</span>`}
+          ${d.psa_status === "verified" ? `<span class="tag ok">Cert checked</span>`
+            : d.psa_status === "no_cert" ? `<span class="tag warn">No cert # listed: check photos</span>`
+            : `<span class="tag warn">Cert not checked yet</span>`}
           ${d.population ? `<span class="tag">Pop ${esc(d.population)}</span>` : ""}
           ${d.buying === "auction" ? `<span class="tag warn">Auction · ${d.bids ?? 0} bids · ${timeLeft(d.ends)}</span>` : ""}
           ${d.feedback ? `<span class="tag">Seller ${esc(d.feedback)}%</span>` : ""}

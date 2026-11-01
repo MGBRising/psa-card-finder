@@ -13,7 +13,8 @@ Every 6 hours a GitHub Action runs the scanner (`scanner/`):
    (raw, candidate, "like PSA 10", Japanese, CGC/BGS…), lists several grades, or
    doesn't match the grade being searched.
 3. **Check the item specifics** the seller filled in: grader must be PSA, grade must
-   match, a cert number must be present, language must be English.
+   match, language must be English. Listings with no cert number are kept but labeled
+   (many sellers skip that field), and you can hide them on the page.
 4. **Check the cert number with PSA.** PSA must confirm the same grade, a Pokémon card,
    and a non-Japanese/other-language set. PSA allows about 100 lookups a day; results
    are cached forever, so coverage grows each day. Not-yet-checked cards are labeled.

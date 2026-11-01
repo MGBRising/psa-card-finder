@@ -176,7 +176,11 @@ class Scanner:
                 self.rejected[problem] += 1
                 continue
 
-            cert, status = self.cert_for(details["cert"])
+            if details.get("cert"):
+                cert, status = self.cert_for(details["cert"])
+            else:
+                # Many sellers skip the optional cert field; keep these but label them.
+                cert, status = None, "no_cert"
             if status == "missing":
                 self.rejected["cert number not found at PSA"] += 1
                 continue

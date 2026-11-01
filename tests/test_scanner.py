@@ -60,9 +60,9 @@ class DetailTests(unittest.TestCase):
         d["grader"] = "Certified Guaranty Company (CGC)"
         self.assertEqual(filters.details_problem(d, "10"), "graded by someone other than PSA")
 
-    def test_missing_cert_and_language(self):
+    def test_missing_cert_allowed_language_checked(self):
         d = filters.item_details(self.ITEM)
-        self.assertIsNotNone(filters.details_problem({**d, "cert": None}, "10"))
+        self.assertIsNone(filters.details_problem({**d, "cert": None}, "10"))  # allowed, just labeled
         self.assertIsNotNone(filters.details_problem({**d, "language": "Japanese"}, "10"))
 
 

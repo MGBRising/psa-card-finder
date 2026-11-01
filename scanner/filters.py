@@ -95,8 +95,6 @@ def details_problem(details, grade):
         return "graded by someone other than PSA"
     if details.get("grade") != grade:
         return "listed grade does not match"
-    if not details.get("cert"):
-        return "no cert number"
     lang = _norm(details.get("language"))
     if lang and "english" not in lang:
         return "not an English card"
