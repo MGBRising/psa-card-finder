@@ -15,6 +15,10 @@ class EbayError(Exception):
     pass
 
 
+class EbayLimitReached(EbayError):
+    """eBay's daily call limit is used up."""
+
+
 class EbayClient:
     def __init__(self, app_id, cert_id, marketplace="EBAY_US", buyer_zip=None):
         self.marketplace = marketplace
@@ -59,6 +63,8 @@ class EbayClient:
                     time.sleep(2 ** (attempt + 1))
                     continue
                 detail = e.read().decode(errors="replace")[:500]
+                if e.code == 429:
+                    raise EbayLimitReached(f"eBay daily limit reached: {detail}") from e
                 raise EbayError(f"eBay returned {e.code}: {detail}") from e
             except urllib.error.URLError as e:
                 if attempt < retries - 1:

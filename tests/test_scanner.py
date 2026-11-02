@@ -224,6 +224,21 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(psa.calls, 1)
         self.assertEqual(cache["psa_usage"]["calls"], 0)
 
+    def test_ebay_limit_keeps_results(self):
+        from scanner.ebay import EbayLimitReached
+
+        class LimitedEbay(FakeEbay):
+            def search(self, q, aspects=None, **kw):
+                if q.startswith("pokemon psa"):
+                    return super().search(q, aspects, **kw)
+                raise EbayLimitReached("429")
+
+        scanner = Scanner({**CONFIG, "grades": ["10"]}, LimitedEbay(), FakePsa(), {})
+        deals = scanner.run()
+        self.assertEqual([d["id"] for d in deals], ["good"])
+        self.assertIsNone(deals[0]["market"])
+        self.assertTrue(scanner.ebay_out)
+
 
 if __name__ == "__main__":
     unittest.main()
