@@ -15,7 +15,7 @@ from pathlib import Path
 
 from . import filters
 from .hold import hold_score
-from .ebay import EbayClient
+from .ebay import EbayClient, EbayLimitReached
 from .psa import PsaAuthError, PsaClient, PsaLimitReached
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -60,6 +60,8 @@ class Scanner:
         self.detail_lookups = 0
         self.skipped = 0
         self.psa_out = False
+        self.ebay_out = False
+        self.psa_checked = 0
 
     # ---- eBay search -------------------------------------------------
     def search_grade(self, grade):
@@ -85,8 +87,14 @@ class Scanner:
             return cached["details"]
         if self.detail_lookups >= self.cfg["max_detail_lookups_per_run"]:
             return None
+        if self.ebay_out:
+            return None
         self.detail_lookups += 1
-        item = self.ebay.get_item(item_id)
+        try:
+            item = self.ebay.get_item(item_id)
+        except EbayLimitReached:
+            self.ebay_limit()
+            return None
         if item is None:
             return {"gone": True}
         details = filters.item_details(item)
@@ -109,6 +117,7 @@ class Scanner:
         try:
             data = self.psa.lookup(cert_number)
             usage["calls"] += 1
+            self.psa_checked += 1
         except PsaLimitReached:
             self.psa_out = True
             return None, "unverified"
@@ -130,17 +139,24 @@ class Scanner:
         cached = self.cache["comps"].get(key)
         if cached and time.time() - cached["at"] < COMPS_TTL:
             prices = cached["prices"]
+        elif self.ebay_out:
+            return []
         else:
             aspects = dict(self.cfg.get("aspect_filters") or {})
             aspects["Grade"] = grade
             prices = []
-            for s in self.ebay.search(
-                q=f"{query} psa {grade}" if number in query.lower() else f"{query} {number} psa {grade}",
-                category_id=self.cfg["category_id"],
-                aspects=aspects,
-                max_items=self.cfg["comps_per_card"],
-                buying="FIXED_PRICE",  # auction bids aren't real prices until the end
-            ):
+            try:
+                found = list(self.ebay.search(
+                    q=f"{query} psa {grade}" if number in query.lower() else f"{query} {number} psa {grade}",
+                    category_id=self.cfg["category_id"],
+                    aspects=aspects,
+                    max_items=self.cfg["comps_per_card"],
+                    buying="FIXED_PRICE",  # auction bids aren't real prices until the end
+                ))
+            except EbayLimitReached:
+                self.ebay_limit()
+                return []
+            for s in found:
                 if filters.title_problem(s.get("title", ""), grade, self.cfg["title_blocklist"]):
                     continue
                 if number not in filters.card_numbers(s.get("title", "")):
@@ -150,6 +166,11 @@ class Scanner:
                     prices.append([s.get("itemId"), round(price + (ship or 0), 2)])
             self.cache["comps"][key] = {"at": time.time(), "prices": prices}
         return prices
+
+    def ebay_limit(self):
+        if not self.ebay_out:
+            print("  eBay's daily call limit is used up: keeping what we have, the rest waits for the next scan")
+        self.ebay_out = True
 
     # ---- main --------------------------------------------------------
     def run(self):
@@ -270,7 +291,13 @@ def main():
 
     scanner = Scanner(config, ebay, psa, cache)
     print("Scanning eBay...")
-    deals = scanner.run()
+    try:
+        deals = scanner.run()
+    except EbayLimitReached as e:
+        # Hit the limit before finding any listings: keep the last results.
+        print(f"Stopping: {e}. The page keeps the previous scan's deals.")
+        save_json(CACHE, cache)
+        return
     scanner.prune_cache()
 
     output = {
@@ -290,7 +317,8 @@ def main():
     save_json(OUTPUT, output)
     save_json(CACHE, cache)
     print(f"Done: {scanner.seen} listings seen, {len(deals)} kept, "
-          f"{sum(scanner.rejected.values())} filtered out, {ebay.calls} eBay calls.")
+          f"{sum(scanner.rejected.values())} filtered out, {ebay.calls} eBay calls, "
+          f"{scanner.psa_checked} certs checked with PSA.")
 
 
 if __name__ == "__main__":
